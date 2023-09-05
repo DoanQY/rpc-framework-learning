@@ -27,6 +27,11 @@ public class KryoSerializer implements Serializer {
         return kryo;
     });
 
+    /**
+     * 序列化
+     * @param obj 要序列化的对象
+     * @return 字节数组
+     */
     @Override
     public byte[] serialize(Object obj) {
         try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();

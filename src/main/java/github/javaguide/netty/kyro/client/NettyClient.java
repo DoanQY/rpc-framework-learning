@@ -38,7 +38,7 @@ public class NettyClient {
     // 初始化相关资源比如 EventLoopGroup, Bootstrap
     static {
         EventLoopGroup eventLoopGroup = new NioEventLoopGroup();
-        b = new Bootstrap();
+        b = new Bootstrap(); // 启动引导/辅助类
         KryoSerializer kryoSerializer = new KryoSerializer();
         b.group(eventLoopGroup)
                 .channel(NioSocketChannel.class)
@@ -62,28 +62,34 @@ public class NettyClient {
     }
 
     /**
-     * 发送消息到服务端
+     * 发送消息到服务端：
+     * 使用 ChannelFuture 来表示连接操作的结果，通过 sync() 方法等待连接完成。
+     * 接着获取连接的 Channel，通过该通道向服务端发送 RPC 请求，并监听发送操作的结果。
+     * 最后，使用 AttributeKey 来定义获取 RPC 响应的属性键，然后通过通道的属性获取 RPC 响应。
      *
      * @param rpcRequest 消息体
      * @return 服务端返回的数据
      */
     public RpcResponse sendMessage(RpcRequest rpcRequest) {
         try {
+            // 创建连接并同步等待连接成功
             ChannelFuture f = b.connect(host, port).sync();
             logger.info("client connect  {}", host + ":" + port);
-            Channel futureChannel = f.channel();
+            // 获取与服务器建立的连接的通道
+            Channel channel = f.channel();
             logger.info("send message");
-            if (futureChannel != null) {
-                futureChannel.writeAndFlush(rpcRequest).addListener(future -> {
+            if (channel != null) {
+                channel.writeAndFlush(rpcRequest).addListener(future -> {
                     if (future.isSuccess()) {
                         logger.info("client send message: [{}]", rpcRequest.toString());
                     } else {
                         logger.error("Send failed:", future.cause());
                     }
                 });
-                futureChannel.closeFuture().sync();
+                // 同步等待连接关闭
+                channel.closeFuture().sync();
                 AttributeKey<RpcResponse> key = AttributeKey.valueOf("rpcResponse");
-                return futureChannel.attr(key).get();
+                return channel.attr(key).get();
             }
         } catch (InterruptedException e) {
             logger.error("occur exception when connect server:", e);
